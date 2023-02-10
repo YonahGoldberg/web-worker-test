@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import './App.css';
 import { WorkerMsg, MainMsg } from './message';
+import Worker from './worker?worker';
 
 const expensiveOperation = () => {
   for (let i = 0; i < 1000; i++) {}
@@ -8,29 +9,33 @@ const expensiveOperation = () => {
 
 function App() {
   const [counter, setCounter] = useState(0);
-  const isCompiling = useRef(false);
-  const worker = useMemo(() => new Worker('./worker.ts'), []);
-  useEffect(() => {
-    console.log('hi');
-    worker.onmessage = (e: MessageEvent<WorkerMsg>) => {
-      console.log('hi');
+  const worker = useRef<undefined | Worker>(undefined);
+  const timerID = useRef<undefined | number>(undefined);
+
+
+  const onClick = () => {
+    console.log('in on click');
+    if (worker.current) {
+      worker.current.terminate();
+    }
+    
+    worker.current = new Worker();
+    worker.current.onmessage = (e: MessageEvent<WorkerMsg>) => {
       const msg = e.data;
       if (msg.finished) {
-        isCompiling.current = false;
+        setCounter(msg.counter);
+        clearInterval(timerID.current);
       } else {
+        console.log('setting counter: ' + msg.counter);
         setCounter(msg.counter);
       }
     }  
-  }, [worker])
 
-  const onClick = () => {
-    isCompiling.current = true;
-    worker.postMessage(MainMsg.Compile);
-    while (isCompiling.current) {
-      console.log('hey');
-      expensiveOperation();
-      worker.postMessage(MainMsg.GetStatus);
-    }
+    worker.current.postMessage(MainMsg.Compile);
+    console.log('waiting');
+    timerID.current = setInterval(() => {
+      worker.current!.postMessage(MainMsg.GetStatus);
+    });
   };
 
   return (
