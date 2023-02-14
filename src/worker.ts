@@ -1,7 +1,7 @@
 import { MainMsg, MainMsgType } from './message';
 
 const SPIN_AMOUNT = 10000000;
-let progressUpdate: Int8Array;
+let checkUpdates: Int8Array;
 let counter = 0;
 
 const stepOptimizer = () => {
@@ -9,11 +9,11 @@ const stepOptimizer = () => {
 }
 
 const runOptimizer = () => {
-    while (counter != 1000) {
+    while (counter != 2000) {
         stepOptimizer();
         counter++;
-        if (Atomics.exchange(progressUpdate, 0, 0)) {
-            postMessage({counter: counter, finished: false})
+        if (Atomics.exchange(checkUpdates, 0, 0)) {
+            return;
         }
     }
     postMessage({counter: counter, finished: true})
@@ -22,11 +22,16 @@ const runOptimizer = () => {
 onmessage = (data: MessageEvent<MainMsg>) => {
     switch (data.data.type) {
         case MainMsgType.SendArray:
-            progressUpdate = new Int8Array(data.data.sab!);
+            checkUpdates = new Int8Array(data.data.sab!);
             break;
         case MainMsgType.Compile:
+            console.log('compiling');
             counter = 0;
-            Atomics.store(progressUpdate, 0, 0);
+            runOptimizer();
+            break;
+        case MainMsgType.ProgressUpdate:
+            console.log('progressUpdate');
+            postMessage({counter: counter, finshed: false})
             runOptimizer();
             break;
     }

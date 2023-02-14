@@ -9,5 +9,5 @@ export interface MainMsg {
 }
 
 export enum MainMsgType {
-    Compile, SendArray
+    Compile, SendArray, ProgressUpdate
 }
