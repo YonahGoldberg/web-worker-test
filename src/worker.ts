@@ -1,6 +1,6 @@
 import { MainMsg, MainMsgType } from './message';
 
-const SPIN_AMOUNT = 1000000;
+const SPIN_AMOUNT = 10000000;
 let progressUpdate: Int8Array;
 let counter = 0;
 

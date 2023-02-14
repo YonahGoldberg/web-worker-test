@@ -3,7 +3,7 @@ import './App.css';
 import { WorkerMsg, MainMsgType } from './message';
 import Worker from './worker?worker';
 
-const INTERVAL_AMOUNT = 60;
+const INTERVAL_AMOUNT = 200;
 
 function App() {
   const [counter, setCounter] = useState(0);
