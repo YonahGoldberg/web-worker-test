@@ -1,41 +1,35 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { WorkerMsg, MainMsg } from './message';
+import { WorkerMsg, MainMsgType } from './message';
 import Worker from './worker?worker';
 
-const expensiveOperation = () => {
-  for (let i = 0; i < 1000; i++) {}
-}
+const INTERVAL_AMOUNT = 60;
 
 function App() {
   const [counter, setCounter] = useState(0);
-  const worker = useRef<undefined | Worker>(undefined);
+  const worker = useRef<Worker>(new Worker());
   const timerID = useRef<undefined | number>(undefined);
+  const progressUpdate = useRef<undefined | Int8Array>(undefined)
 
+  useEffect(() => {
+    const sab = new SharedArrayBuffer(1);
+    progressUpdate.current = new Int8Array(sab);
 
-  const onClick = () => {
-    console.log('in on click');
-    if (worker.current) {
-      worker.current.terminate();
-    }
-    
-    worker.current = new Worker();
     worker.current.onmessage = (e: MessageEvent<WorkerMsg>) => {
       const msg = e.data;
+      setCounter(msg.counter);
       if (msg.finished) {
-        setCounter(msg.counter);
         clearInterval(timerID.current);
-      } else {
-        console.log('setting counter: ' + msg.counter);
-        setCounter(msg.counter);
       }
-    }  
+    }
+    worker.current.postMessage({ type : MainMsgType.SendArray, sab })
+  }, [])
 
-    worker.current.postMessage(MainMsg.Compile);
-    console.log('waiting');
+  const onClick = () => {
+    worker.current.postMessage({ type : MainMsgType.Compile, undefined });
     timerID.current = setInterval(() => {
-      worker.current!.postMessage(MainMsg.GetStatus);
-    });
+      Atomics.store(progressUpdate.current!, 0, 1);
+    }, INTERVAL_AMOUNT);
   };
 
   return (

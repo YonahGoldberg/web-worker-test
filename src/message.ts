@@ -3,6 +3,11 @@ export interface WorkerMsg {
     counter: number,
 }
 
-export enum MainMsg {
-    Compile, GetStatus,
+export interface MainMsg {
+    type: MainMsgType,
+    sab : SharedArrayBuffer | undefined
+}
+
+export enum MainMsgType {
+    Compile, SendArray
 }
