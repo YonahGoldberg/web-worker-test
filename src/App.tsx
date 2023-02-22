@@ -10,13 +10,13 @@ interface Counter {
   color: Color,
 }
 
+const worker = new Worker();
+
 function App() {
   const [counter, setCounter] = useState<Counter>({ counter: 0, color: Color.Red });
   const [intervalAmount, setIntervalAmount] = useState<number>(0);
-  const worker = useRef<Worker>(new Worker());
   const timerID = useRef<undefined | number>(undefined);
   const nextTrioToCompile = useRef<Color>(Color.Red);
-  const workerSentUpdate = useRef<boolean>(true);
   const workerFinished = useRef<boolean>(true);
   const mainWaitingToSendTrio = useRef<boolean>(false)
   // First index is if main wants an update, second index is if main wants to compile
@@ -44,15 +44,8 @@ function App() {
   }
 
   const askForUpdate = () => {
-    // If already waiting for a worker to send an update, do nothing
-    if (!workerSentUpdate.current) {
-      console.log("waiting for update");
-    }
-    if (workerSentUpdate.current) {
       console.log("asking for update");
-      workerSentUpdate.current = false;
       Atomics.store(sharedMemory.current!, 0, 1)
-    }
   }
 
   const sendTrio = () => {
@@ -61,9 +54,8 @@ function App() {
       sab: undefined,
       trio: nextTrioToCompile.current,
     }
-    worker.current.postMessage(mainMsg);
-    console.log("setting interval: " + intervalAmount);
-    timerID.current = setInterval(askForUpdate, intervalAmount);
+    worker.postMessage(mainMsg);
+    askForUpdate();
   }
 
   useEffect(() => {
@@ -74,27 +66,26 @@ function App() {
       sab,
       trio: undefined
     }
-    worker.current.postMessage(mainMsg);
+    worker.postMessage(mainMsg);
   }, []);
 
-  worker.current.onmessage = (e: MessageEvent<WorkerMsg>) => {
+  worker.onmessage = (e: MessageEvent<WorkerMsg>) => {
     const msg = e.data;
     switch (msg.type) {
       case WorkerMsgType.Finished: 
         workerFinished.current = true;
         setCounter({ counter: msg.counter!, color: msg.trio! })
-        clearInterval(timerID.current!);
         console.log("worker finished");
         break;
       case WorkerMsgType.Update:
         console.log("received update");
         setCounter({ counter: msg.counter!, color: msg.trio! });
-        console.log(colorToString(msg.trio!));
-        workerSentUpdate.current = true;
+        askForUpdate();
         break;
       case WorkerMsgType.ReadyForNewTrio:
         console.log("sending new trio");
         mainWaitingToSendTrio.current = false;
+        clearTimeout(timerID.current);
         sendTrio();
         break;
     }
@@ -110,7 +101,6 @@ function App() {
       console.log("main waiting for worker to be ready to compile again");
       if (!mainWaitingToSendTrio.current) {
         console.log("main telling worker to stop working and wait for new trio");
-        clearInterval(timerID.current!);
         mainWaitingToSendTrio.current = true;
         Atomics.store(sharedMemory.current!, 1, 1);
       }
@@ -129,7 +119,6 @@ function App() {
         max={1000} 
         onChange={(num) => {
           if (!Array.isArray(num)) {
-            console.log("setting interval amount in onChange: " + num);
             setIntervalAmount(num)
           }
         }}
