@@ -15,9 +15,9 @@ const worker = new Worker();
 function App() {
   const [counter, setCounter] = useState<Counter>({ counter: 0, color: Color.Red });
   const [intervalAmount, setIntervalAmount] = useState<number>(0);
-  const timerID = useRef<undefined | number>(undefined);
   const nextTrioToCompile = useRef<Color>(Color.Red);
   const workerFinished = useRef<boolean>(true);
+  const timeoutID = useRef<number>(0);
   const mainWaitingToSendTrio = useRef<boolean>(false)
   // First index is if main wants an update, second index is if main wants to compile
   // a new trio
@@ -80,12 +80,12 @@ function App() {
       case WorkerMsgType.Update:
         console.log("received update");
         setCounter({ counter: msg.counter!, color: msg.trio! });
-        askForUpdate();
+        timeoutID.current = setTimeout(askForUpdate, intervalAmount);
         break;
       case WorkerMsgType.ReadyForNewTrio:
         console.log("sending new trio");
         mainWaitingToSendTrio.current = false;
-        clearTimeout(timerID.current);
+        clearTimeout(timeoutID.current);
         sendTrio();
         break;
     }
